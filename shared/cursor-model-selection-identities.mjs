@@ -2,11 +2,6 @@ function getParameter(model, id) {
 	return (model.parameters ?? []).find((parameter) => parameter.id === id);
 }
 
-function getDefaultParam(model, id) {
-	const variant = (model.variants ?? []).find((candidate) => candidate.isDefault) ?? model.variants?.[0];
-	return variant?.params?.find((param) => param.id === id)?.value.toLowerCase();
-}
-
 function getAmbiguousAliases(models) {
 	const ownersByAlias = new Map();
 	for (const model of models) {
@@ -31,11 +26,8 @@ function getSelectableIds(model, reservedIds, ambiguousAliases) {
 	return ids;
 }
 
-function encodePiModelId(modelId, context, fastOverride) {
-	const contextQualified = context ? `${modelId}@${context}` : modelId;
-	if (fastOverride === true) return `${contextQualified}:fast`;
-	if (fastOverride === false) return `${contextQualified}:slow`;
-	return contextQualified;
+function encodePiModelId(modelId, context) {
+	return context ? `${modelId}@${context}` : modelId;
 }
 
 export function getCursorModelSelectionIdentities(models) {
@@ -48,28 +40,20 @@ export function getCursorModelSelectionIdentities(models) {
 	for (const model of sortedModels) {
 		const contextValues = getParameter(model, "context")?.values?.map(({ value }) => value) ?? [];
 		const contexts = contextValues.length > 0 ? contextValues : [undefined];
-		const hasFast = getParameter(model, "fast") !== undefined;
-		const fastOverrides = hasFast ? [undefined, true, false] : [undefined];
-		const defaultFast = getDefaultParam(model, "fast");
 
 		for (const selectionModelId of getSelectableIds(model, reservedIds, ambiguousAliases)) {
 			for (const context of contexts) {
-				for (const fastOverride of fastOverrides) {
-					const piModelId = encodePiModelId(selectionModelId, context, fastOverride);
-					if (usedPiModelIds.has(piModelId)) continue;
-					usedPiModelIds.add(piModelId);
-					const defaultEquivalent =
-						(fastOverride === true && defaultFast === "true") || (fastOverride === false && defaultFast === "false");
-					identities.push({
-						model,
-						selectionModelId,
-						...(context ? { context } : {}),
-						...(fastOverride !== undefined ? { fastOverride } : {}),
-						piModelId,
-						contextWindowKey: defaultEquivalent ? encodePiModelId(selectionModelId, context) : piModelId,
-						baseContextWindowKey: encodePiModelId(model.id, context, defaultEquivalent ? undefined : fastOverride),
-					});
-				}
+				const piModelId = encodePiModelId(selectionModelId, context);
+				if (usedPiModelIds.has(piModelId)) continue;
+				usedPiModelIds.add(piModelId);
+				identities.push({
+					model,
+					selectionModelId,
+					...(context ? { context } : {}),
+					piModelId,
+					contextWindowKey: piModelId,
+					baseContextWindowKey: encodePiModelId(model.id, context),
+				});
 			}
 		}
 	}

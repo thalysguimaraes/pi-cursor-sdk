@@ -23,7 +23,7 @@ const models = [
 ] satisfies ModelListItem[];
 
 describe("Cursor model-selection identities", () => {
-	it("matches runtime registration and canonicalizes default fast aliases", () => {
+	it("matches runtime registration with base-only identities", () => {
 		const identities = getCursorModelSelectionIdentities(models);
 		const runtimeIds = modelDiscoveryTestUtils.registerModelItems(models).map(({ id }) => id).sort();
 		expect(identities.map(({ piModelId }) => piModelId).sort()).toEqual(runtimeIds);
@@ -32,16 +32,12 @@ describe("Cursor model-selection identities", () => {
 			{ contextWindowKey, baseContextWindowKey },
 		]))).toEqual({
 			"model-a@1m": { contextWindowKey: "model-a@1m", baseContextWindowKey: "model-a@1m" },
-			"model-a@1m:fast": { contextWindowKey: "model-a@1m:fast", baseContextWindowKey: "model-a@1m:fast" },
-			"model-a@1m:slow": { contextWindowKey: "model-a@1m", baseContextWindowKey: "model-a@1m" },
 			"alias-a@1m": { contextWindowKey: "alias-a@1m", baseContextWindowKey: "model-a@1m" },
-			"alias-a@1m:fast": { contextWindowKey: "alias-a@1m:fast", baseContextWindowKey: "model-a@1m:fast" },
-			"alias-a@1m:slow": { contextWindowKey: "alias-a@1m", baseContextWindowKey: "model-a@1m" },
 			"model-b": { contextWindowKey: "model-b", baseContextWindowKey: "model-b" },
 		});
 	});
 
-	it("omits stale and ambiguous IDs while collapsing equivalent entries", () => {
+	it("omits stale, ambiguous, and legacy fast-alias IDs", () => {
 		const normalized = normalizeCursorContextWindowEntries(
 			models,
 			new Map([
@@ -55,23 +51,7 @@ describe("Cursor model-selection identities", () => {
 		);
 		expect(Object.fromEntries(normalized)).toEqual({
 			default: 200_000,
-			"model-a@1m": 300_000,
-			"model-a@1m:fast": 1_000_000,
-			"alias-a@1m": 300_000,
 		});
-	});
-
-	it("rejects conflicting windows for equivalent selections", () => {
-		expect(() =>
-			normalizeCursorContextWindowEntries(
-				models,
-				new Map([
-					["model-a@1m", 1_000_000],
-					["model-a@1m:slow", 300_000],
-				]),
-				"checkpoint input",
-			),
-		).toThrow("checkpoint input assigns conflicting windows to equivalent selection model-a@1m");
 	});
 
 	it("keeps every bundled key canonical and reachable in the fallback catalog", () => {

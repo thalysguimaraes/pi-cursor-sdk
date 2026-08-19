@@ -74,8 +74,6 @@ describe("discoverModels", () => {
 				"composer-2-5",
 				"composer-latest",
 				"grok-4.6",
-				"grok-4.6:fast",
-				"grok-4.6:slow",
 				"gpt-5.5@1m",
 				"gpt-5.5@272k",
 			]),
@@ -375,20 +373,11 @@ describe("discoverModels", () => {
 			},
 		]);
 		const models = await discoverModels();
-		expect(models.map((model) => model.id)).toEqual([
-			"gpt-5.4@272k",
-			"gpt-5.4@272k:fast",
-			"gpt-5.4@272k:slow",
-			"gpt-5.4@1m",
-			"gpt-5.4@1m:fast",
-			"gpt-5.4@1m:slow",
-		]);
+		expect(models.map((model) => model.id)).toEqual(["gpt-5.4@272k", "gpt-5.4@1m"]);
 		expect(models[0].contextWindow).toBe(272000);
-		expect(models[1].contextWindow).toBe(272000);
-		expect(models[3].contextWindow).toBe(1000000);
+		expect(models[1].contextWindow).toBe(1000000);
 		expect(models[0].name).toBe("GPT-5.4 @ 272k");
-		expect(models[1].name).toBe("GPT-5.4 (fast) @ 272k");
-		expect(models[2].name).toBe("GPT-5.4 (slow) @ 272k");
+		expect(models[1].name).toBe("GPT-5.4 @ 1m");
 
 		const metadata = getCursorModelMetadata("gpt-5.4@272k");
 		expect(metadata).toMatchObject({
@@ -402,21 +391,21 @@ describe("discoverModels", () => {
 			{ id: "reasoning", value: "medium" },
 			{ id: "fast", value: "false" },
 		]);
+		// Legacy pre-toggle catalog ids (:fast/:slow) collapse onto the base model.
 		expect(getCursorModelMetadata("gpt-5.4@272k:fast")).toMatchObject({
 			baseModelId: "gpt-5.4",
 			selectionModelId: "gpt-5.4",
 			context: "272k",
-			fastOverride: true,
-			defaultFast: true,
+			defaultFast: false,
 		});
 		expect(getCursorModelMetadata("gpt-5.4@272k:slow")).toMatchObject({
 			baseModelId: "gpt-5.4",
 			selectionModelId: "gpt-5.4",
 			context: "272k",
-			fastOverride: false,
 			defaultFast: false,
 		});
-		expect(buildCursorModelSelection("gpt-5.4@272k:fast", "medium")).toEqual({
+		// Fast is a binary property on the selection, not a model id.
+		expect(buildCursorModelSelection("gpt-5.4@272k", "medium", true)).toEqual({
 			id: "gpt-5.4",
 			params: [
 				{ id: "context", value: "272k" },
@@ -424,7 +413,7 @@ describe("discoverModels", () => {
 				{ id: "fast", value: "true" },
 			],
 		});
-		expect(buildCursorModelSelection("gpt-5.4@272k:slow", "medium")).toEqual({
+		expect(buildCursorModelSelection("gpt-5.4@272k", "medium", false)).toEqual({
 			id: "gpt-5.4",
 			params: [
 				{ id: "context", value: "272k" },
@@ -457,7 +446,7 @@ describe("discoverModels", () => {
 			},
 		]);
 		const models = await discoverModels();
-		expect(models.map((model) => model.id)).toEqual(["gpt-5.3-codex", "gpt-5.3-codex:fast", "gpt-5.3-codex:slow"]);
+		expect(models.map((model) => model.id)).toEqual(["gpt-5.3-codex"]);
 		expect(getCursorModelMetadata("gpt-5.3-codex")?.defaultParams).toEqual([
 			{ id: "reasoning", value: "high" },
 			{ id: "fast", value: "true" },
@@ -487,8 +476,6 @@ describe("discoverModels", () => {
 
 			expect(models.map((model) => [model.id, model.contextWindow])).toEqual([
 				["composer-2", 200000],
-				["composer-2:fast", 200000],
-				["composer-2:slow", 200000],
 				["new-sdk-model", 200000],
 			]);
 		} finally {
@@ -556,7 +543,7 @@ describe("discoverModels", () => {
 		expect(windowsById["opus-4-8@1m"]).toBe(310000);
 	});
 
-	it("inherits base context and fast evidence for aliases without exact observations", () => {
+	it("inherits base context evidence for aliases without exact observations", () => {
 		saveCachedContextWindow("base-context-model@1m", 300000);
 		saveCachedContextWindow("base-context-model@1m:fast", 320000);
 		saveCachedContextWindow("observed-alias@1m", 310000);
@@ -577,8 +564,9 @@ describe("discoverModels", () => {
 
 		expect(windowsById["observed-alias@1m"]).toBe(310000);
 		expect(windowsById["unobserved-alias@1m"]).toBe(300000);
-		expect(windowsById["unobserved-alias@1m:slow"]).toBe(300000);
-		expect(windowsById["unobserved-alias@1m:fast"]).toBe(320000);
+		// Legacy :fast/:slow cache keys no longer match any selectable model id.
+		expect(windowsById["unobserved-alias@1m:slow"]).toBeUndefined();
+		expect(windowsById["unobserved-alias@1m:fast"]).toBeUndefined();
 	});
 
 	it("lets user cache override bundled context windows", async () => {
@@ -600,8 +588,6 @@ describe("discoverModels", () => {
 
 			expect(models.map((model) => [model.id, model.contextWindow])).toEqual([
 				["composer-2", 201000],
-				["composer-2:fast", 201000],
-				["composer-2:slow", 201000],
 			]);
 		} finally {
 			rmSync(tmpAgentDir, { recursive: true, force: true });

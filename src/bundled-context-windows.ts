@@ -1,7 +1,6 @@
 // Generated from Cursor SDK checkpoint tokenDetails.maxTokens on 2026-08-18.
 // Refresh with: npm run refresh:cursor-snapshots -- --write --context-windows ~/.pi/agent/cursor-sdk-context-windows.json
-// Keys are current selectable model IDs. Equivalent default :fast/:slow selections
-// collapse to one key; stale and ambiguous aliases are omitted. Values are observed
+// Keys are current selectable model IDs; stale and ambiguous aliases are omitted. Values are observed
 // or conservative default/non-Max-mode limits and may override a catalog context
 // label when the completed SDK checkpoint reports a different effective limit.
 export const BUNDLED_CONTEXT_WINDOWS = {
@@ -30,7 +29,6 @@ export const BUNDLED_CONTEXT_WINDOWS = {
 	"gpt-5.5@272k": 272000,
 	"gpt-5.6@1m": 272000,
 	"grok-4.5": 256000,
-	"grok-4.5:slow": 256000,
 	"grok-4.6": 256000,
 	"kimi-k2.7-code": 200000,
 	"kimi-k3": 200000,

@@ -37,8 +37,8 @@ export const CURSOR_LOCAL_FORCE_ENV = "PI_CURSOR_LOCAL_FORCE";
 export const CURSOR_LOCAL_RESUME_ENV = "PI_CURSOR_LOCAL_RESUME";
 export const CURSOR_HTTP1_ENV = "PI_CURSOR_HTTP_1_1";
 
-export type CursorConfigSource = "cli" | "environment" | "project" | "user" | "session" | "model-alias" | "builtin";
-export type CursorConfigTrustLevel = "one-shot" | "environment" | "trusted-project" | "user" | "session" | "model-catalog" | "builtin";
+export type CursorConfigSource = "cli" | "environment" | "project" | "user" | "session" | "builtin";
+export type CursorConfigTrustLevel = "one-shot" | "environment" | "trusted-project" | "user" | "session" | "builtin";
 export type CursorRuntime = "local" | "cloud";
 export type CursorCloudContextHandoff = "never" | "fresh" | "bootstrap";
 export type CursorCloudEnvironmentType = "cloud" | "pool" | "machine";
@@ -150,7 +150,6 @@ const TRUST_LEVELS: Record<CursorConfigSource, CursorConfigTrustLevel> = {
 	project: "trusted-project",
 	user: "user",
 	session: "session",
-	"model-alias": "model-catalog",
 	builtin: "builtin",
 };
 
@@ -525,7 +524,7 @@ function envNamesCap(candidate: string[], base: CursorResolvedSetting<string[]>)
 // precedence), plus its per-layer values. Sources omitted from a field's order (e.g. cloud fields skip
 // "project", local fields skip "session", force skips both) are the field-specific omissions the review
 // asked to keep explicit; test/cursor-config.test.ts asserts each one.
-type CursorFieldSource = Exclude<CursorConfigSource, "model-alias">;
+type CursorFieldSource = CursorConfigSource;
 type CursorFieldValues<T> = Partial<Record<CursorFieldSource, T>>;
 
 const RUNTIME_ORDER: CursorFieldSource[] = ["cli", "environment", "session", "project", "user", "builtin"];
@@ -791,14 +790,12 @@ export function resolveCursorSdkConfig(options: ResolveCursorSdkConfigOptions = 
 export function resolveCursorFastDefault(options: {
 	cliForceFast?: boolean;
 	cliForceNoFast?: boolean;
-	aliasOverride?: boolean;
 	sessionValue?: boolean;
 	userValue?: boolean;
 	modelDefault: boolean;
 }): CursorResolvedSetting<boolean> {
 	if (options.cliForceNoFast) return resolved("cli", false);
 	if (options.cliForceFast) return resolved("cli", true);
-	if (options.aliasOverride !== undefined) return resolved("model-alias", options.aliasOverride);
 	if (options.sessionValue !== undefined) return resolved("session", options.sessionValue);
 	if (options.userValue !== undefined) return resolved("user", options.userValue);
 	return resolved("builtin", options.modelDefault);

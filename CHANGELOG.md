@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 - 2026-08-19
+
+### Changed
+
+- Fast is now Cursor's native binary toggle, not a model variant. Models that expose Cursor's `fast` parameter register exactly once; the selection-only `:fast` / `:slow` virtual model aliases are gone from the catalog, picker, and `--list-models`. Toggle fast with `/cursor-fast`, save per-model defaults in `~/.pi/agent/cursor-sdk.json`, or force it per run with `--cursor-fast` / `--cursor-no-fast`. Legacy `cursor/<model>:fast` / `:slow` selections still resolve onto the base model.
+
 ## 0.3.6 - 2026-08-18
 
 ### Fixed

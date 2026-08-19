@@ -57,7 +57,6 @@ export interface CursorModelMetadata {
 	contextWindow: number;
 	supportsFast: boolean;
 	defaultFast: boolean;
-	fastOverride?: boolean;
 	supportsReasoning: boolean;
 	thinkingLevelMap?: ThinkingLevelMap;
 	parameterIds: {
@@ -177,12 +176,10 @@ function getParamValue(params: ModelParameterValue[], id: string): string | unde
 	return params.find((param) => param.id === id)?.value;
 }
 
-function getModelName(item: ModelListItem, context?: string, alias?: string, fastOverride?: boolean): string {
+function getModelName(item: ModelListItem, context?: string, alias?: string): string {
 	const displayName = item.displayName || item.id;
 	const qualifiers: string[] = [];
 	if (alias) qualifiers.push(alias);
-	if (fastOverride === true) qualifiers.push("fast");
-	if (fastOverride === false) qualifiers.push("slow");
 	const baseName = qualifiers.length > 0 ? `${displayName} (${qualifiers.join(", ")})` : displayName;
 	return context ? `${baseName} @ ${context}` : baseName;
 }
@@ -213,7 +210,6 @@ function toMetadata(
 	context: string | undefined,
 	contextWindowCache: Map<string, number>,
 	contextWindowKeys: readonly string[],
-	fastOverride?: boolean,
 ): CursorModelMetadata {
 	const thinkingLevelMap = getThinkingLevelMap(item);
 	const fastValue = getParamValue(defaultParams, "fast")?.toLowerCase();
@@ -227,7 +223,6 @@ function toMetadata(
 		contextWindow: getContextWindow(contextWindowCache, contextWindowKeys, context, item.id),
 		supportsFast: getParameter(item, "fast") !== undefined,
 		defaultFast: fastValue === "true",
-		...(fastOverride !== undefined ? { fastOverride } : {}),
 		supportsReasoning: thinkingLevelMap !== undefined,
 		...(thinkingLevelMap ? { thinkingLevelMap } : {}),
 		parameterIds: {
@@ -256,10 +251,9 @@ function toModelConfig(metadata: CursorModelMetadata, name: string): ProviderMod
 function registerModelItems(items: ModelListItem[]): ProviderModelConfig[] {
 	metadataByPiModelId.clear();
 	const contextWindowCache = loadContextWindowCache();
-	return getCursorModelSelectionIdentities(items).map(({ model: item, selectionModelId, context, fastOverride, piModelId, contextWindowKey, baseContextWindowKey }) => {
+	return getCursorModelSelectionIdentities(items).map(({ model: item, selectionModelId, context, piModelId, contextWindowKey, baseContextWindowKey }) => {
 		const defaultParams = getDefaultParams(item);
-		const contextParams = context ? replaceParam(defaultParams, "context", context) : defaultParams;
-		const params = fastOverride === undefined ? contextParams : replaceParam(contextParams, "fast", fastOverride ? "true" : "false");
+		const params = context ? replaceParam(defaultParams, "context", context) : defaultParams;
 		const metadata = toMetadata(
 			item,
 			piModelId,
@@ -268,16 +262,23 @@ function registerModelItems(items: ModelListItem[]): ProviderModelConfig[] {
 			context,
 			contextWindowCache,
 			[piModelId, contextWindowKey, baseContextWindowKey],
-			fastOverride,
 		);
 		metadataByPiModelId.set(piModelId, metadata);
 		const alias = selectionModelId === item.id ? undefined : selectionModelId;
-		return toModelConfig(metadata, getModelName(item, context, alias, fastOverride));
+		return toModelConfig(metadata, getModelName(item, context, alias));
 	});
 }
 
+const LEGACY_FAST_MODEL_SUFFIX = /:(?:fast|slow)$/;
+
 export function getCursorModelMetadata(modelId: string): CursorModelMetadata | undefined {
-	return metadataByPiModelId.get(modelId);
+	const direct = metadataByPiModelId.get(modelId);
+	if (direct) return direct;
+	// Pre-0.4.0 catalog registered selection-only :fast/:slow virtual models.
+	// Collapse them onto the base model so persisted selections keep resolving
+	// after /cursor-refresh-models; fast stays a binary per-model toggle.
+	const legacyBaseModelId = modelId.replace(LEGACY_FAST_MODEL_SUFFIX, "");
+	return legacyBaseModelId !== modelId ? metadataByPiModelId.get(legacyBaseModelId) : undefined;
 }
 
 export function getCursorModelMetadataEntries(): CursorModelMetadata[] {

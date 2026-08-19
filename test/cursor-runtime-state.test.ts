@@ -601,7 +601,7 @@ describe("Cursor cloud runtime state", () => {
 describe("Cursor cloud model selection", () => {
 	beforeEach(resetCursorProviderTestState);
 
-	it("ignores mutable fast preferences while preserving catalog defaults and explicit aliases", async () => {
+	it("ignores mutable fast preferences while preserving catalog defaults", async () => {
 		mockCreatedAgent({
 			agentId: "bc-00000000-0000-0000-0000-000000000001",
 			send: vi.fn().mockResolvedValue({
@@ -616,7 +616,9 @@ describe("Cursor cloud model selection", () => {
 		});
 		const cases = [
 			{ modelId: "gpt-5.5@1m", flag: "cursor-fast", expected: "false" },
-			{ modelId: "gpt-5.5@1m:fast", flag: "cursor-no-fast", expected: "true" },
+			// Legacy :fast/:slow ids collapse onto the base model; cloud still
+			// preserves the catalog default instead of honoring fast preferences.
+			{ modelId: "gpt-5.5@1m:fast", flag: "cursor-no-fast", expected: "false" },
 			{ modelId: "gpt-5.5@1m:slow", flag: "cursor-fast", expected: "false" },
 		] as const;
 

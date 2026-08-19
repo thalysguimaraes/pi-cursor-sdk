@@ -473,37 +473,36 @@ describe("Cursor runtime state", () => {
 		expect(getEffectiveFastForModelId("gpt-5.5@1m")).toBe(true);
 	});
 
-	it("lets virtual fast models override stored slow preferences", async () => {
+	it("collapses legacy :fast model ids onto the base model", async () => {
 		writeFileSync(__testUtils.getConfigPath(), JSON.stringify({ fastDefaults: { "composer-2": false } }));
 		const { pi, ctx } = createCursorRuntimeHarness({ modelId: "composer-2:fast" });
 
 		await pi.invokeEventWithContext("session_start", { type: "session_start", reason: "startup" }, ctx);
 
-		expect(ctx.ui.setStatus).toHaveBeenLastCalledWith("cursor", "cursor:local · fast:on");
-		expect(getEffectiveFastForModelId("composer-2:fast")).toBe(true);
+		// The stored user preference wins; the legacy :fast suffix no longer forces fast.
+		expect(ctx.ui.setStatus).toHaveBeenLastCalledWith("cursor", "cursor:local · fast:off");
+		expect(getEffectiveFastForModelId("composer-2:fast")).toBe(false);
 	});
 
-	it("lets virtual slow models override stored fast preferences", async () => {
+	it("collapses legacy :slow model ids onto the base model", async () => {
 		writeFileSync(__testUtils.getConfigPath(), JSON.stringify({ fastDefaults: { "composer-2": true } }));
 		const { pi, ctx } = createCursorRuntimeHarness({ modelId: "composer-2:slow" });
 
 		await pi.invokeEventWithContext("session_start", { type: "session_start", reason: "startup" }, ctx);
 
-		expect(ctx.ui.setStatus).toHaveBeenLastCalledWith("cursor", "cursor:local · fast:off");
-		expect(getEffectiveFastForModelId("composer-2:slow")).toBe(false);
+		expect(ctx.ui.setStatus).toHaveBeenLastCalledWith("cursor", "cursor:local · fast:on");
+		expect(getEffectiveFastForModelId("composer-2:slow")).toBe(true);
 	});
 
-	it("does not persist /cursor-fast while a virtual fast model is selected", async () => {
+	it("persists /cursor-fast for legacy :fast/:slow model selections", async () => {
 		const { pi, ctx, commandCtx, commands } = createCursorRuntimeHarness({ modelId: "composer-2:slow" });
 		await pi.invokeEventWithContext("session_start", { type: "session_start", reason: "startup" }, ctx);
 
 		await commands.get("cursor-fast")!.handler("", commandCtx);
 
-		expect(ctx.ui.notify).toHaveBeenCalledWith(
-			"Cursor fast is fixed disabled by selected model composer-2:slow; choose composer-2 to use /cursor-fast preferences",
-			"info",
-		);
-		expect(pi.appendEntry).not.toHaveBeenCalled();
+		// The legacy id resolves to the base model, so the toggle flips and persists
+		// the stored preference instead of refusing.
+		expect(pi.appendEntry).toHaveBeenCalledWith("cursor-fast-state", { modelId: "composer-2", fast: false });
 		expect(getEffectiveFastForModelId("composer-2:slow")).toBe(false);
 	});
 

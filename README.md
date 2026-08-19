@@ -8,7 +8,7 @@ Use this extension if you primarily use Cursor models inside pi and want Cursor'
 
 Use `pi-cursor-sdk` when you primarily want to use Cursor models **inside pi**.
 
-This extension runs Cursor models through `@cursor/sdk` and keeps Cursor's agent loop intact. Local remains the default; explicit cloud runtime starts Cursor Cloud after acknowledgement and preflight. pi integrates around that loop: model discovery, model selection, context-window variants, thinking controls where Cursor exposes them, fast/slow aliases, Cursor mode, session handling, native replay cards, and the optional local pi tool bridge.
+This extension runs Cursor models through `@cursor/sdk` and keeps Cursor's agent loop intact. Local remains the default; explicit cloud runtime starts Cursor Cloud after acknowledgement and preflight. pi integrates around that loop: model discovery, model selection, context-window variants, thinking controls where Cursor exposes them, a native binary fast toggle, Cursor mode, session handling, native replay cards, and the optional local pi tool bridge.
 
 OpenAI-compatible Cursor proxies are useful when you want a generic `/v1/chat/completions` or `/v1/responses` endpoint for many clients such as curl, the OpenAI SDK, OpenCode, or other tools. That compatibility comes from translating Cursor behavior into OpenAI-shaped requests, responses, and tool calls.
 
@@ -200,7 +200,7 @@ pi --model cursor/claude-opus-4-7@1m:max
 pi --model cursor/gpt-5.5@1m --thinking medium
 ```
 
-Cursor `context` becomes a pi-visible model variant because it changes pi's native `contextWindow`. For models that expose Cursor's boolean `fast` parameter, the extension also registers virtual `:fast` and `:slow` model aliases such as `cursor/grok-4.6:slow` and `cursor/gpt-5.5@1m:fast`. Those aliases are selection-only controls for subagents and workflow-spawned agents: they send the same Cursor SDK model ID plus an explicit `fast=true` or `fast=false` param, and they take precedence over saved `/cursor-fast` session/global defaults. Cursor SDK conversation mode remains extension state, not model identity. Alias model IDs use their selected SDK ID for Cursor-only state such as fast defaults, with read fallback for older defaults keyed by the underlying Cursor base model.
+Cursor `context` becomes a pi-visible model variant because it changes pi's native `contextWindow`. Cursor's boolean `fast` parameter is not a model variant: each model that exposes it registers once, and fast is a binary per-model toggle controlled through `/cursor-fast`, saved defaults, or the `--cursor-fast` / `--cursor-no-fast` force flags. Cursor SDK conversation mode remains extension state, not model identity.
 
 ## Thinking support
 
@@ -224,9 +224,9 @@ Some Cursor SDK models do not expose a `reasoning`, `effort`, or `thinking` para
 
 ## Fast mode
 
-Use `/cursor-fast` to persistently toggle fast mode for the selected unsuffixed Cursor model when the model supports Cursor's `fast` parameter.
+Use `/cursor-fast` to persistently toggle fast mode for the selected Cursor model when the model supports Cursor's `fast` parameter. Fast is Cursor's native binary toggle, not a separate model: the picker lists each model once, and the toggle is applied per model.
 
-Fast preferences are remembered per selected Cursor SDK model ID or alias and stored:
+Fast preferences are remembered per selected Cursor SDK model ID and stored:
 
 - in the current session with `pi.appendEntry()`
 - globally in `~/.pi/agent/cursor-sdk.json`
@@ -238,16 +238,7 @@ pi --model cursor/gpt-5.5@1m --cursor-fast -p "Say ok only"
 pi --model cursor/grok-4.6 --cursor-no-fast -p "Say ok only"
 ```
 
-For per-agent control, select the virtual model alias instead of mutating the shared saved default:
-
-```bash
-pi --model cursor/grok-4.6:slow -p "Say ok only"
-pi --model cursor/gpt-5.5@1m:fast -p "Say ok only"
-```
-
-The `:fast` and `:slow` aliases are available only for Cursor models whose catalog exposes a `fast` parameter. They override saved `/cursor-fast` session/global defaults while leaving `--cursor-fast` and `--cursor-no-fast` as explicit process-level force flags. `/cursor-fast` does not persist a new default while a virtual fast/slow alias is selected; switch to the unsuffixed model first.
-
-Composer 2 and Composer 2.5 can default to fast. Use `--cursor-no-fast` or a `:slow` virtual alias for a one-shot no-fast Composer run. In print mode (`-p`), `--cursor-no-fast` is silent and does not write `~/.pi/agent/cursor-sdk.json`.
+Models whose catalog default variant is fast (for example Composer 2 and Composer 2.5) run fast until toggled or forced off; use `--cursor-no-fast` or `/cursor-fast` for a one-shot no-fast run. In print mode (`-p`), `--cursor-no-fast` is silent and does not write `~/.pi/agent/cursor-sdk.json`.
 
 In interactive mode, the footer shows Cursor status only while a Cursor model is active. Fast-capable models show fast state explicitly, and fast and plan mode share one Cursor status value so they do not overwrite each other:
 
@@ -266,7 +257,7 @@ cursor:cloud · fast:n/a
 
 ## Cursor SDK mode
 
-Cursor SDK conversation mode is Cursor-only extension state. It is not a pi model variant, not pi thinking/reasoning, not a `:fast`/`:slow` virtual fast alias, and not pi's separate read-only plan-mode extension.
+Cursor SDK conversation mode is Cursor-only extension state. It is not a pi model variant, not pi thinking/reasoning, not the fast toggle, and not pi's separate read-only plan-mode extension.
 
 Default mode is `agent`. Start a one-shot run in a specific mode:
 
