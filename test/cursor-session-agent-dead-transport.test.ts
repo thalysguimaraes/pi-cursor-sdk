@@ -61,10 +61,10 @@ describe("cursor-session-agent dead transport", () => {
 		expect(sessionAgentTestUtils.getSessionCursorAgentPoolState(first.scopeKey).status).toBe("ready");
 
 		// During an active local turn (as wired by the provider turn runner), the exact
-		// EPIPE is contained and marks this scope's transport dead.
+		// EPIPE is contained and invalidates this scope's transport.
 		const turnGuard = installCursorSdkProcessErrorGuard();
 		turnGuard.containLocalTransportClosedPipe(() =>
-			sessionAgentTestUtils.invalidateSessionAgent(first.scopeKey, { deadTransport: true }),
+			sessionAgentTestUtils.invalidateSessionAgent(first.scopeKey),
 		);
 		let containedListenerCalled = false;
 		const containedListener = () => {
@@ -95,7 +95,7 @@ describe("cursor-session-agent dead transport", () => {
 		expect(otherDispose).not.toHaveBeenCalled();
 	});
 
-	it("bounds disposal of a dead-transport agent so the next acquire recreates instead of hanging", async () => {
+	it("bounds agent disposal so acquire and shutdown cannot hang on an unresponsive transport", async () => {
 		const hangingDispose = vi.fn().mockReturnValue(new Promise<never>(() => {}));
 		const secondDispose = vi.fn().mockResolvedValue(undefined);
 		const createAgent = vi
@@ -114,7 +114,7 @@ describe("cursor-session-agent dead transport", () => {
 		const first = await acquireSessionCursorAgent(params);
 		const previousTimeout = sessionAgentTestUtils.setDeadTransportAgentDisposeTimeoutMs(25);
 		try {
-			sessionAgentTestUtils.invalidateSessionAgent(first.scopeKey, { deadTransport: true });
+			sessionAgentTestUtils.invalidateSessionAgent(first.scopeKey);
 			const second = await acquireSessionCursorAgent(params);
 			expect(second.created).toBe(true);
 			expect(second.agent).not.toBe(first.agent);

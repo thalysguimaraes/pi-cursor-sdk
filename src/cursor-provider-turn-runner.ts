@@ -85,7 +85,7 @@ export class CursorProviderTurnRunner {
 				// this scope's pooled agent transport dead so the next acquire recreates it.
 				const localScopeKey = getCursorSessionScopeKey();
 				sdkProcessErrorGuard.containLocalTransportClosedPipe(() =>
-					invalidateSessionAgent(localScopeKey, { deadTransport: true }),
+					invalidateSessionAgent(localScopeKey),
 				);
 				if (
 					(await drainExistingCursorLiveRunBeforeSend(stream, partial, model, context, options?.signal, this.sdkEventDebug)) ===
